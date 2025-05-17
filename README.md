@@ -8,7 +8,7 @@
 
 ## Задание
 
-Задание размещено в папке `task` в файле `README.md`.
+Задание размещено в папке task в файле [README.md](https://github.com/lRasputinl/Practice-2025-1/blob/main/task/README.md).
 
 ## Вариативная часть задания
 
