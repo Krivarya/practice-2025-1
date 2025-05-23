@@ -1,139 +1,285 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using System.Windows.Threading;
 
-namespace WPF_Flappy_Bird
+namespace Minesweeper
 {
     public partial class MainWindow : Window
     {
-        //Основной игровой цикл
-        DispatcherTimer gameTimer = new DispatcherTimer();
-        double score;
-        int gravity = 8;                                    // Базовая гравитация (падение птицы вниз)
-        bool gameOver;
-        Rect flappyBirdHitBox;
+        private const int Rows = 10;
+        private const int Cols = 10;
+        private const int MineCount = 15;
+
+        private Button[,] _buttons;
+        private bool[,] _mines;
+        private int[,] _adjacentMines;
+        private bool[,] _revealed;
+        private bool[,] _flagged;
+        private int _revealedCount;
+        private bool _gameOver;
+        private DispatcherTimer _timer;
+        private int _secondsElapsed;
 
         public MainWindow()
         {
             InitializeComponent();
-
-            gameTimer.Tick += MainEventTimer;
-            gameTimer.Interval = TimeSpan.FromMilliseconds(20);
-            StartGame();
+            InitializeGame();
         }
 
-        private void MainEventTimer(object sender, EventArgs e)
+        private void InitializeGame()
         {
-            txtScore.Content = "Очки: " + score;
-            flappyBirdHitBox = new Rect(Canvas.GetLeft(flappyBird), Canvas.GetTop(flappyBird), flappyBird.Width - 12, flappyBird.Height);
-            Canvas.SetTop(flappyBird, Canvas.GetTop(flappyBird) + gravity);
-            if (Canvas.GetTop(flappyBird) < -30 || Canvas.GetTop(flappyBird) + flappyBird.Height > 460)
-            {
-                EndGame();
-            }
-            foreach (var x in MyCanvas.Children.OfType<Image>())
-            {
-                if ((string)x.Tag == "obs1" || (string)x.Tag == "obs2" || (string)x.Tag == "obs3")
-                {
-                    Canvas.SetLeft(x, Canvas.GetLeft(x) - 5);
+            GameGrid.Rows = Rows;
+            GameGrid.Columns = Cols;
+            GameGrid.Children.Clear();
 
-                    if (Canvas.GetLeft(x) < -100)
+            _buttons = new Button[Rows, Cols];
+            _mines = new bool[Rows, Cols];
+            _adjacentMines = new int[Rows, Cols];
+            _revealed = new bool[Rows, Cols];
+            _flagged = new bool[Rows, Cols];
+            _revealedCount = 0;
+            _gameOver = false;
+            _secondsElapsed = 0;
+
+            MinesCounter.Text = MineCount.ToString();
+            TimerText.Text = "0";
+
+            SetupTimer();
+            GenerateMines();
+            CalculateAdjacentMines();
+            CreateButtons();
+        }
+
+        private void SetupTimer()
+        {
+            if (_timer != null)
+            {
+                _timer.Stop();
+            }
+
+            _timer = new DispatcherTimer();
+            _timer.Interval = TimeSpan.FromSeconds(1);
+            _timer.Tick += Timer_Tick;
+            _timer.Start();
+        }
+
+        private void Timer_Tick(object sender, EventArgs e)
+        {
+            _secondsElapsed++;
+            TimerText.Text = _secondsElapsed.ToString();
+        }
+
+        private void GenerateMines()
+        {
+            var random = new Random();
+            int minesPlaced = 0;
+
+            while (minesPlaced < MineCount)
+            {
+                int row = random.Next(Rows);
+                int col = random.Next(Cols);
+
+                if (!_mines[row, col])
+                {
+                    _mines[row, col] = true;
+                    minesPlaced++;
+                }
+            }
+        }
+
+        private void CalculateAdjacentMines()
+        {
+            for (int row = 0; row < Rows; row++)
+            {
+                for (int col = 0; col < Cols; col++)
+                {
+                    if (_mines[row, col])
                     {
-                        Canvas.SetLeft(x, 800);
-                        score += .5;
+                        _adjacentMines[row, col] = -1;
+                        continue;
                     }
 
-                    Rect PillarHitBox = new Rect(Canvas.GetLeft(x), Canvas.GetTop(x), x.Width, x.Height);
+                    int count = 0;
 
-                    if (flappyBirdHitBox.IntersectsWith(PillarHitBox))
+                    for (int r = Math.Max(0, row - 1); r <= Math.Min(Rows - 1, row + 1); r++)
                     {
-                        EndGame();
+                        for (int c = Math.Max(0, col - 1); c <= Math.Min(Cols - 1, col + 1); c++)
+                        {
+                            if (_mines[r, c]) count++;
+                        }
+                    }
+
+                    _adjacentMines[row, col] = count;
+                }
+            }
+        }
+
+        private void CreateButtons()
+        {
+            for (int row = 0; row < Rows; row++)
+            {
+                for (int col = 0; col < Cols; col++)
+                {
+                    Button button = new Button();
+                    button.FontWeight = FontWeights.Bold;
+                    button.Margin = new Thickness(1);
+
+                    button.PreviewMouseLeftButtonDown += Button_PreviewMouseLeftButtonDown;
+                    button.PreviewMouseRightButtonDown += Button_PreviewMouseRightButtonDown;
+
+                    _buttons[row, col] = button;
+                    GameGrid.Children.Add(button);
+                }
+            }
+        }
+
+        private void Button_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (_gameOver) return;
+
+            Button button = (Button)sender;
+            int index = GameGrid.Children.IndexOf(button);
+            int row = index / Cols;
+            int col = index % Cols;
+
+            if (_flagged[row, col]) return;
+
+            RevealCell(row, col);
+
+            if (_mines[row, col])
+            {
+                GameOver(false);
+            }
+            else if (_revealedCount == Rows * Cols - MineCount)
+            {
+                GameOver(true);
+            }
+        }
+
+        private void Button_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (_gameOver) return;
+
+            Button button = (Button)sender;
+            int index = GameGrid.Children.IndexOf(button);
+            int row = index / Cols;
+            int col = index % Cols;
+
+            if (!_revealed[row, col])
+            {
+                _flagged[row, col] = !_flagged[row, col];
+                UpdateButtonAppearance(row, col);
+
+                // Обновляем счетчик мин
+                int flaggedCount = 0;
+                for (int r = 0; r < Rows; r++)
+                {
+                    for (int c = 0; c < Cols; c++)
+                    {
+                        if (_flagged[r, c]) flaggedCount++;
                     }
                 }
 
-                if ((string)x.Tag == "clouds")
-                {
-                    Canvas.SetLeft(x, Canvas.GetLeft(x) - 1);
+                MinesCounter.Text = (MineCount - flaggedCount).ToString();
+            }
+        }
 
-                    if (Canvas.GetLeft(x) < -250)
+        private void RevealCell(int row, int col)
+        {
+            if (row < 0 || row >= Rows || col < 0 || col >= Cols ||
+                _revealed[row, col] || _flagged[row, col])
+            {
+                return;
+            }
+
+            _revealed[row, col] = true;
+            _revealedCount++;
+            UpdateButtonAppearance(row, col);
+
+            if (_adjacentMines[row, col] == 0)
+            {
+               
+                for (int r = row - 1; r <= row + 1; r++)
+                {
+                    for (int c = col - 1; c <= col + 1; c++)
                     {
-                        Canvas.SetLeft(x, 550);
-                        score += .5;
+                        if (r == row && c == col) continue;
+                        RevealCell(r, c);
                     }
                 }
             }
         }
 
-        private void KeyIsDown(object sender, KeyEventArgs e)
+        private void UpdateButtonAppearance(int row, int col)
         {
-            if (e.Key == Key.Space)
-            {
-                flappyBird.RenderTransform = new RotateTransform(-20, flappyBird.Width / 2, flappyBird.Height / 2);
-                gravity = -8;           // "Прыжок" - временная отрицательная гравитация
-            }
+            Button button = _buttons[row, col];
 
-            if (e.Key == Key.R && gameOver == true)
+            if (_flagged[row, col])
             {
-                StartGame();
+                button.Content = "🚩";
+                button.Background = Brushes.LightGray;
+            }
+            else if (!_revealed[row, col])
+            {
+                button.Content = "";
+                button.Background = Brushes.LightGray;
+            }
+            else if (_mines[row, col])
+            {
+                button.Content = "💣";
+                button.Background = Brushes.Red;
+            }
+            else
+            {
+                int count = _adjacentMines[row, col];
+                button.Content = count > 0 ? count.ToString() : "";
+                button.Background = Brushes.White;
+
+                // Разные цвета для цифр
+                switch (count)
+                {
+                    case 1: button.Foreground = Brushes.Blue; break;
+                    case 2: button.Foreground = Brushes.Green; break;
+                    case 3: button.Foreground = Brushes.Red; break;
+                    case 4: button.Foreground = Brushes.DarkBlue; break;
+                    case 5: button.Foreground = Brushes.DarkRed; break;
+                    case 6: button.Foreground = Brushes.Teal; break;
+                    case 7: button.Foreground = Brushes.Black; break;
+                    case 8: button.Foreground = Brushes.Gray; break;
+                    default: button.Foreground = Brushes.Black; break;
+                }
             }
         }
 
-        private void KeyIsUp(object sender, KeyEventArgs e)
+        private void GameOver(bool isWin)
         {
-            flappyBird.RenderTransform = new RotateTransform(5, flappyBird.Width / 2, flappyBird.Height / 2);
-            gravity = 8;            // Возврат к обычной гравитации
-        }
+            _gameOver = true;
+            _timer.Stop();
 
-        private void StartGame()
-        {
-            MyCanvas.Focus();
-            int temp = 300;
-            score = 0;
-            gameOver = false;
-            Canvas.SetTop(flappyBird, 190);
-            foreach (var x in MyCanvas.Children.OfType<Image>())
+            // Показать все мины
+            for (int row = 0; row < Rows; row++)
             {
-                if ((string)x.Tag == "obs1")
+                for (int col = 0; col < Cols; col++)
                 {
-                    Canvas.SetLeft(x, 500);
-                }
-                if ((string)x.Tag == "obs2")
-                {
-                    Canvas.SetLeft(x, 800);
-                }
-                if ((string)x.Tag == "obs3")
-                {
-                    Canvas.SetLeft(x, 1100);
-                }
-
-                if ((string)x.Tag == "clouds")
-                {
-                    Canvas.SetLeft(x, 300 + temp);
-                    temp = 800;
+                    if (_mines[row, col])
+                    {
+                        _revealed[row, col] = true;
+                        UpdateButtonAppearance(row, col);
+                    }
                 }
             }
 
-            gameTimer.Start();
+            MessageBox.Show(isWin ? "Поздравляем! Вы победили!" : "Игра окончена! Вы проиграли!",
+                          "Игра окончена");
         }
 
-        private void EndGame()
+        private void RestartButton_Click(object sender, RoutedEventArgs e)
         {
-            gameTimer.Stop();
-            gameOver = true;
-            txtScore.Content += " Игра окончена! Нажмите R - начать заново.";
-
+            InitializeGame();
         }
     }
 }
