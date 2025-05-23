@@ -1,2 +1,2 @@
 # Видео геймплея игры:
-https://drive.google.com/file/d/1TMw2md2oMho1BKRpOLOPdiELXR_TVfmf/view?usp=sharing
+https://drive.google.com/file/d/1tZWwtMjSnL-1eWJzKcz8l0Zk9UPWkvMu/view?usp=drive_link
