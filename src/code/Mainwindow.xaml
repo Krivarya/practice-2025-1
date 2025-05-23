@@ -1,29 +1,29 @@
-<Window x:Class="WPF_Flappy_Bird.MainWindow"
+<Window x:Class="Minesweeper.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:WPF_Flappy_Bird"
+        xmlns:local="clr-namespace:Minesweeper"
         mc:Ignorable="d"
-        Title="WPF Flappy Bird" Height="490" Width="525">
-    <Canvas Name="MyCanvas" Focusable="True" KeyDown="KeyIsDown" KeyUp="KeyIsUp" Background="LightBlue">
+        Title="Сапер" Height="450" Width="400" ResizeMode="CanMinimize">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-        <Image Height="145" Width="200" Source="images/clouds.png" Canvas.Left="28" Canvas.Top="120" Tag="clouds"/>
-        <Image Height="145" Width="200" Source="images/clouds2.png" Canvas.Left="307" Canvas.Top="120" Tag="clouds"/>
+        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Margin="5">
+            <TextBlock Text="Мины: " FontSize="16"/>
+            <TextBlock x:Name="MinesCounter" Text="0" FontSize="16"/>
+            <TextBlock Text="   Время: " FontSize="16" Margin="10,0,0,0"/>
+            <TextBlock x:Name="TimerText" Text="0" FontSize="16"/>
+        </StackPanel>
 
+        <UniformGrid x:Name="GameGrid" Grid.Row="1" Margin="5"/>
 
-        <Image Height="390" Width="66" Source="images/pipeBottom.png" Tag="obs1" Canvas.Left="76" Canvas.Top="270" />
-        <Image Height="390" Width="66" Source="images/pipeTop.png" Tag="obs1" Canvas.Left="76" Canvas.Top="-236" />
-
-        <Image Height="390" Width="66" Source="images/pipeBottom.png" Tag="obs2" Canvas.Left="228" Canvas.Top="416" />
-        <Image Height="390" Width="66" Source="images/pipeTop.png" Tag="obs2" Canvas.Left="228" Canvas.Top="-90" />
-
-        <Image Height="390" Width="66" Source="images/pipeBottom.png" Tag="obs3" Canvas.Left="426" Canvas.Top="292" />
-        <Image Height="390" Width="66" Source="images/pipeTop.png" Tag="obs3" Canvas.Left="426" Canvas.Top="-214" />
-
-        <Image Name="flappyBird" Height="36" Width="50" Source="/images/flappyBird.png" Stretch="Fill" Canvas.Top="190" Canvas.Left="10" />
-
-        <Label Name="txtScore" FontSize="22" FontWeight="ExtraBold" Content="Очки: 0" />
-
-    </Canvas>
+        <Button x:Name="RestartButton" Grid.Row="2" Content="Новая игра" 
+                HorizontalAlignment="Center" Margin="5" Padding="10,5" 
+                Click="RestartButton_Click"/>
+    </Grid>
 </Window>
